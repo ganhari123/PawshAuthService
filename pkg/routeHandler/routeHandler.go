@@ -31,7 +31,12 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Println(user)
+
+		if ok, err := user.VerifyUserCredentials(); ok && err == nil {
+			fmt.Println(user)
+			//generate JWT token for user
+
+		}
 	} else {
 		http.Error(w, "Invalid request", 405)
 	}
