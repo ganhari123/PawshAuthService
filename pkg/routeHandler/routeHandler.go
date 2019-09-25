@@ -8,12 +8,17 @@ import (
 
 	jwt "../jwt"
 	model "../model"
+	twilio "../twilio"
 	util "../util"
 )
+
+type userCode map[string]string
 
 func HandleHttpRoutes() {
 	http.HandleFunc("/health", healthHandler)
 	http.HandleFunc("/login", loginHandler)
+	http.HandleFunc("/register", registerHandler)
+	//http.HandleFunc("/verifyRegistrationCode", verifyRegistrationCode)
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +42,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			//generate JWT token for user
 			token, err := jwt.GenerateJwtToken(&user)
 			if err != nil {
-				log.Fatal(err)
+				http.Error(w, "JWT token generation error", 400)
 				return
 			}
 
@@ -46,29 +51,45 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 				Success: true,
 				Error:   "",
 			}
-
 			res, err := json.Marshal(response)
 			if err != nil {
-				log.Fatal(err)
+				http.Error(w, "Response json marshalling error", 400)
 				return
 			}
+
 			fmt.Fprintf(w, string(res))
 			return
 		}
 
-		response := util.HttpResponse{
-			Body:    "",
-			Success: false,
-			Error:   "Username or password was incorrect",
+		http.Error(w, "Invalid user credentials", 400)
+		return
+	}
+	http.Error(w, "Invalid request", 405)
+	return
+}
+
+func registerHandler(w http.ResponseWriter, r *http.Request) {
+	var user *model.User
+	if r.Method == http.MethodPost {
+		jsonDecode := json.NewDecoder(r.Body)
+		err := jsonDecode.Decode(&user)
+		if err != nil {
+			http.Error(w, "json decoder error", 400)
+			return
+
 		}
 
-		_, err = json.Marshal(response)
-		if err != nil {
-			log.Fatal(err)
+		success, err := user.AddUserToUserTable()
+		if !success && (err != nil) {
+			http.Error(w, "User addition to table failed", 400)
 			return
 		}
-		http.Error(w, "Invalid request", 405)
-	} else {
-		http.Error(w, "Invalid request", 405)
+
+		code, err := twilio.SendVerificationCode(user.PhoneNumber)
+		if err != nil {
+			http.Error(w, "twilio verification code error", 400)
+			return
+		}
+		fmt.Println(code)
 	}
 }

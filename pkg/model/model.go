@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 
@@ -45,6 +46,40 @@ func (u *User) VerifyUserCredentials() (bool, error) {
 			return false, err
 		}
 		return true, nil
+	default:
+		log.Println(err)
+		return false, err
+	}
+}
+
+func (u *User) AddUserToUserTable() (bool, error) {
+	db, err := util.CreateDBConnection()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var email string
+
+	query := `SELECT email FROM users WHERE email = '` + u.Email + `';`
+	row := db.DBClient.QueryRow(query)
+	switch err := row.Scan(&email); err {
+	case sql.ErrNoRows:
+		fmt.Println("No rows were returned!")
+		encryptedPassword, err := bcrypt.GenerateFromPassword([]byte(u.Password), bcrypt.MinCost)
+		if err != nil {
+			log.Println(err)
+			return false, err
+		}
+
+		query := fmt.Sprintf("INSERT INTO users (email, password, fullname, address, phonenumber, verified) Values ('%s', '%s', '%s', '%s', '%s', false)", u.Email, encryptedPassword, u.FullName, "", u.PhoneNumber)
+		_, err = db.DBClient.Exec(query)
+		if err != nil {
+			log.Println(err)
+			return false, err
+		}
+		return true, nil
+	case nil:
+		return false, errors.New("User already exists in table")
 	default:
 		log.Println(err)
 		return false, err
