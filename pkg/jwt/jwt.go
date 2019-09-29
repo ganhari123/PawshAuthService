@@ -1,7 +1,6 @@
 package jwt
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -9,12 +8,14 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
-var SharedSecret = []byte("secret_key")
+// SharedSecret - needs to be moved to a config file
+var SharedSecret = []byte("")
 
-func GenerateJwtToken(user *model.User) (string, error) {
-	expirationTime := time.Now().Add(5 * time.Minute)
+// GenerateJwtAccessToken - Generates a jwt token and encodes with secret
+func GenerateJwtAccessToken(email string) (string, error) {
+	expirationTime := time.Now().Add(24 * time.Hour)
 	claim := model.JwtClaim{
-		Email: user.Email,
+		Email: email,
 		StandardClaims: jwt.StandardClaims{
 			ExpiresAt: expirationTime.Unix(),
 		},
@@ -23,9 +24,7 @@ func GenerateJwtToken(user *model.User) (string, error) {
 	tokenString, err := token.SignedString(SharedSecret)
 	if err != nil {
 		log.Println("ERROR")
-		log.Fatal(err)
 		return "", err
 	}
-	fmt.Println(tokenString)
 	return tokenString, nil
 }
